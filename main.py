@@ -3,26 +3,64 @@ import os
 from dotenv import load_dotenv
 import speech_recognition as sr
 
-load_dotenv()
+def capitarAudio():
+    rec = sr.Recognizer()
+    textoCompleto = ''
 
-api_key = os.getenv("CHATGPT_KEY")
+    with sr.Microphone() as mic:
+        rec.adjust_for_ambient_noise(mic)
+        print("Comece a falar!")
+        while True:
+            audio = rec.listen(mic, timeout=5, phrase_time_limit=5)
 
-# openai.api_key = api_key
+            try:
+                texto = rec.recognize_google(audio, language = "pt-BR")
+                print(f'Você acabou de falar {texto}')
+                textoCompleto += " " + texto   
+                 
+                if 'fim' in texto.lower():
+                    textoCompleto = textoCompleto.replace('encerrar', '')
+                    print('Gravação encerrada')
+                    break
+                
+            except sr.UnknownValueError:
+                print("não entendi. repete fi")
 
-# print(sr.Microphone().list_microphone_names())
+    print(f"Tudo que voccê falou: {textoCompleto}")
+    return textoCompleto
 
-rec = sr.Recognizer()
+def ChatGPT():
+    load_dotenv()
 
-texto = ''
+    api_key = os.getenv("CHATGPT_KEY")
 
-with sr.Microphone() as mic:
-    rec.adjust_for_ambient_noise(mic)
-    print("Comece a falar!")
-    audio = rec.listen(mic)
+    openai.api_key = api_key
 
-try:
-    texto = rec.recognize_google(audio, language = "pt-BR")
-    print(f"Obrigado por falar: {texto}")
-    
-except sr.UnknownValueError:
-    print("não entendi")
+    messages = [
+        {"role": "system", "content": "Você é um importante assistente"}
+    ]
+
+    comando = capitarAudio()
+
+    messages.append({"role": "user", "content": comando})
+
+    while not "fim" in comando.lower():
+        response = openai.ChatCompletion.create(
+            model = "gpt-3.5-turbo",
+            messages = messages,
+            temperature = 1,
+            max_tokens = 200
+        )
+        answer = response['choices'][0]['message']['content']
+        messages.append({"role": "assistant", "content": answer})
+
+        print(f"Resposta: {answer}")
+        
+        comando = capitarAudio()
+        messages.append({"role": "user", "content": comando})
+
+def main():
+    capitarAudio()
+
+if __name__ == "__main__":
+    main()
